@@ -3,3 +3,4 @@ pandas
 altair
 google-genai
 nest_asyncio
+google-generativeai
