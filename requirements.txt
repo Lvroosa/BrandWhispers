@@ -1,0 +1,5 @@
+praw
+pandas
+altair
+google-genai
+nest_asyncio
