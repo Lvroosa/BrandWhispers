@@ -17,6 +17,7 @@ import nest_asyncio
 import re
 import time
 import base64
+import google.generativeai as genai
 
 
 nest_asyncio.apply()
