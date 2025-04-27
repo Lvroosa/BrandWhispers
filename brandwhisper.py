@@ -10,7 +10,6 @@ import pandas as pd
 import streamlit as st
 import altair as alt
 from datetime import datetime
-from google import genai
 from google.genai import types
 import asyncio
 import nest_asyncio
