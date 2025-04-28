@@ -1,10 +1,4 @@
-
-
-
-
-
-
-# --- IMPORTS ---
+#Importing packages for the application
 import praw
 import pandas as pd
 import streamlit as st
@@ -18,22 +12,17 @@ import base64
 import google.generativeai as genai
 
 
+#allowing async calls to be made in streamlit
 nest_asyncio.apply()
 
 
-# GEMINI API SETUP
+#GEMINI API setup
 GEMINI_API_KEY = st.secrets["all_my_api_keys"]["GEMINI_API_KEY"]
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(model_name="gemini-1.5-pro-latest")
 
 
-
-
-
-
-
-
-# REDDIT API SETUP
+# REDDIT API setup
 reddit = praw.Reddit(
     client_id= st.secrets["all_my_api_keys"]["client_id"],
     client_secret= st.secrets["all_my_api_keys"]["client_secret"],
@@ -41,26 +30,8 @@ reddit = praw.Reddit(
 )
 
 
-
-
-
-
-
-
-
-
-
-
-#gif background setup
-
-
-
-
+#Setting application background using an online gif
 gif_url = "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExb29wZ2V1bjl1azdkcXl6aTU0Zjlyb2wwbGpoNXBwcDMzbTNkdXF5NiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/Hg5Bsk2WvDTUvhWs7E/giphy.gif"
-
-
-
-
 st.markdown(
     f"""
     <style>
@@ -93,20 +64,14 @@ st.markdown(
 
 
 
-
-
-# --- STREAMLIT UI ---
+# STREAMLIT UI for BrandWhispers
 st.title('Welcome to BrandWhispers!')
 st.write("Not from surveys—straight from gossip forums.")
 
 
 
 
-
-
-
-
-# --- USER INPUT ---
+# User input by subreddit and keywords as well as other filters
 search_all = st.checkbox("Search across all conversations, not just one subreddit", value=False)
 if not search_all:
     subreddit_name = st.text_input('Enter the brand subreddit (e.g., nike):', 'nike')
@@ -125,7 +90,8 @@ post_limit = st.slider("How many opinions do you want to analyze?",
 
 
 
-# --- FUNCTIONS ---
+# Functions
+## Reddit API function to get posts by keyword and post sorting method
 @st.cache_data
 def get_top_opinions(subreddit_name, post_limit, keyword):
     subreddit = reddit.subreddit(subreddit_name)
@@ -146,9 +112,8 @@ def get_top_opinions(subreddit_name, post_limit, keyword):
 
 
 
-
-
-
+## Function to analyze sentiment and summary of Reddit posts using Gemini. It includes
+## error handling for rate limits and asynchronous calls.
 async def analyze_bulk_sentiment_and_summary(df, subreddit_name, keyword):
     text_block = "\n".join([f"- {title}" for title in df['Title']])
     prompt = (
@@ -179,14 +144,8 @@ async def analyze_bulk_sentiment_and_summary(df, subreddit_name, keyword):
 
 
 
-
-
-
-
-
-
-
-
+## Function to analyze product quality based on the summary of Reddit posts
+## using Gemini. It includes error handling for rate limits and asynchronous calls.
 def analyze_quality(text_block, subreddit_name, keyword):
     prompt = (
         f"You are a professional quality control engineer and product manager at {subreddit_name}. \n"
@@ -213,48 +172,14 @@ def analyze_quality(text_block, subreddit_name, keyword):
 
 
 
-
-
-
-
-
-
-
-
+## Function to perform the full analysis of Reddit posts, including sentiment analysis and product quality analysis.
+## It combines the previous functions and handles the flow of data.
 async def full_analysis(subreddit_name, keyword, post_limit):
     df = get_top_opinions(subreddit_name, post_limit, keyword)
     if df.empty:
         return "No opinions found.", df, None, "", ""
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     # One bulk Gemini call
     gemini_output = await analyze_bulk_sentiment_and_summary(df, subreddit_name, keyword)
-
-
-
-
-
-
-
-
     # Parse Gemini output
     try:
         pos = int(re.search(r'Positive:\s*(\d+)', gemini_output).group(1))
@@ -264,14 +189,6 @@ async def full_analysis(subreddit_name, keyword, post_limit):
     except:
         pos, neg, neu = 0, 0, 0
         summary = gemini_output
-
-
-
-
-
-
-
-
     # Sentiment label
     if pos > max(neg, neu):
         overall = "positive"
@@ -279,27 +196,11 @@ async def full_analysis(subreddit_name, keyword, post_limit):
         overall = "negative"
     else:
         overall = "neutral"
-
-
-
-
     sentiment_df = pd.DataFrame({
         "Sentiment": ["Positive", "Negative", "Neutral"],
         "Count": [pos, neg, neu]
     })
-
-
-
-
     product_quality = analyze_quality(summary, subreddit_name, keyword)
-
-
-
-
-
-
-
-
     score_summary = (
         f"### General opinions on '{keyword}' from {subreddit_name}:\n"
         f"- **Positive Posts**: {pos}\n"
@@ -312,31 +213,14 @@ async def full_analysis(subreddit_name, keyword, post_limit):
 
 
 
-
-
-
-
-# --- MAIN ACTION ---
+# Back to Streamlit UI. This is the main action where the user can start the analysis.
 if st.button('Start Eavesdropping'):
     location_label = "on Reddit" if subreddit_name == "all" else f"on {subreddit_name}"
     st.write(f"### Listening in on what people are saying about **{keyword}** {location_label}...")
-
-
-
-
-
-
-
-
-
     with st.spinner('Snooping around...'):
         summary, posts_df, sentiment_df, brand_summary, product_quality = asyncio.run(
             full_analysis(subreddit_name, keyword, post_limit)
         )
-
-
-
-
     if posts_df.empty:
         st.warning("No relevant posts found.")
     else:
@@ -344,19 +228,8 @@ if st.button('Start Eavesdropping'):
         st.write(brand_summary)
         st.markdown("## Product Quality")
         st.write(product_quality)
-
-
-
-
         st.markdown("## Sentiment Scorecard")
-
-
-
-
-
-
-
-
+        ## Displaying the sentiment scorecard
         def get_sentiment_label(score):
             if score >= 90:
                 return "Excellent"
@@ -372,10 +245,6 @@ if st.button('Start Eavesdropping'):
                 return "Very Negative"
             else:
                 return "Critical"
-
-
-
-
         total_posts = sentiment_df['Count'].sum()
         sentiment_score = (
             sentiment_df[sentiment_df['Sentiment'] == 'Positive']['Count'].sum() * 1.0 +
@@ -383,8 +252,6 @@ if st.button('Start Eavesdropping'):
         )
         sentiment_percent = round((sentiment_score / total_posts) * 100, 1)
         letter_grade = get_sentiment_label(sentiment_percent)
-
-
 
 
         ##displaying a large percentage and letter grade
@@ -404,22 +271,9 @@ if st.button('Start Eavesdropping'):
             """,
             unsafe_allow_html=True
         )
-
-
-
-
-
-
-
-
+        ## Displaying the sentiment breakdown
         st.markdown("## Sentiment Breakdown")
         st.markdown(summary)
-
-
-
-
-
-
 
 
         chart = alt.Chart(sentiment_df).mark_bar().encode(
@@ -429,15 +283,7 @@ if st.button('Start Eavesdropping'):
         ).properties(width=400, height=300)
 
 
-
-
-
-
-
-
         st.altair_chart(chart, use_container_width=True)
-
-
 
 
         st.markdown("## Top Posts")
@@ -449,20 +295,14 @@ if st.button('Start Eavesdropping'):
 
 
 
-# --- FOOTER ---
+# Footer
 st.write("---")
 st.caption("BrandWhispers: AI-powered brand eavesdropping for product people and cultural sleuths.")
 
 
 
 
-
-
-
-
-
-
-# Adding footer logo (no changes needed)
+# Adding footer logo
 def add_footer_logo(png_file_path):
     # Encode image to base64
     with open(png_file_path, "rb") as f:
@@ -479,5 +319,22 @@ def add_footer_logo(png_file_path):
     st.markdown(footer_html, unsafe_allow_html=True)
 
 
-# Call the function with your image filename
+# Call the function with image filename
 add_footer_logo("RedditProjectBrandAssets.png")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
